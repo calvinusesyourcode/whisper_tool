@@ -19,6 +19,5 @@ def transcribe_offline(model:str, file_path:pathlib.WindowsPath):
 | medium     | 769 M      | medium.en    | ~5 GB  | ~2x            |
 | large      | 1550 M     | N/A          | ~10 GB | 1x             |
 """
-    model = whisper.load_model("base")
-    result = model.transcribe(file_path)
+    result = whisper.load_model(model,device="cuda").transcribe(audio=str(file_path), verbose=True)
     return result

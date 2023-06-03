@@ -49,6 +49,9 @@ def find_videos(channel,search_terms):
                 video_urls.append(links[i])
     os.system("cls")
     print("Got urls from HTML")
+    with (open(f"log.txt", "w")) as f:
+                f.write("Got urls from HTML:\n")
+                f.write("".join(str(each)+"\n" for each in video_urls))
     return video_urls
 
 def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads", mode:str="video", quality:str="good", okay_with_webm:bool=True):
@@ -81,7 +84,7 @@ def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads",
     elif mode == "video_only":
 
         youtube_video = YouTube(video_url, use_oauth=True, allow_oauth_cache=True)
-        
+
         videos = youtube_video.streams.filter(type="video")
         if okay_with_webm:
             videos = videos.filter(file_extension="webm")
@@ -103,8 +106,7 @@ def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads",
 
     elif mode == "audio":
 
-        youtube_video = YouTube(video_url, use_oauth=True, allow_oauth_cache=True)
-
+        youtube_video = YouTube(video_url, use_oauth=False, allow_oauth_cache=True)
         streams = sorted(youtube_video.streams.filter(only_audio=True, file_extension="mp4"), reverse=True, key=lambda stream: int(''.join(c for c in stream.abr if c.isdigit())) if stream.abr else 0)
         print("\n".join(str(stream) for stream in streams))
 
@@ -117,6 +119,9 @@ def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads",
         }
         
         selected_stream = next((stream for stream in streams if stream.bitrate <= quality_map[quality]), None)
+        if selected_stream is None: #TODO: optimize this
+            selected_stream = next((stream for stream in sorted(streams, key=lambda x: x.bitrate) if stream.bitrate > quality_map[quality]), None)
+        
         print(quality, quality_map[quality])
         print(selected_stream)
     else:
@@ -132,7 +137,4 @@ def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads",
         selected_stream.download(output_path=folder, filename=output_filename)
     return Path(folder,output_filename)
 
-
-
-download_from_youtube("https://www.youtube.com/watch?v=Sj3iI9jZCX8", folder="C:/Users/calvi/Desktop", mode="video", quality="good")
-
+# download_from_youtube("https://www.youtube.com/watch?v=jclr0N6mvUI", mode="video")
