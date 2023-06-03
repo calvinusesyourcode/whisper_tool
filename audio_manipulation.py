@@ -1,7 +1,7 @@
 import os, openai, subprocess, pathlib, math, datetime
 from pathlib import Path
 # my imports
-from miscellaneous import to_time
+from string_manipulation import to_time
 
 def get_audio_size(filename: pathlib.WindowsPath):
     """Get the size of an audio file in MB."""
