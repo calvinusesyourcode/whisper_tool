@@ -137,4 +137,11 @@ def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads",
         selected_stream.download(output_path=folder, filename=output_filename)
     return Path(folder,output_filename)
 
+def yt_url_to_audiopath(urls:list,folder:str="output"):
+    audiopaths = []
+    for url in urls:
+        audio_path = download_from_youtube(url,folder,mode="audio",quality="low",okay_with_webm=True)
+        audiopaths.append(audio_path)
+    return audiopaths
+
 # download_from_youtube("https://www.youtube.com/watch?v=jclr0N6mvUI", mode="video")
