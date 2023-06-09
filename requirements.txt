@@ -1,0 +1,9 @@
+ahk==1.1.3
+inquirer==3.1.3
+openai==0.27.3
+openai_whisper==20230314
+pyperclip==1.8.2
+pytube==15.0.0
+requests_html==0.10.0
+Send2Trash==1.8.2
+torch==2.0.0+cu118

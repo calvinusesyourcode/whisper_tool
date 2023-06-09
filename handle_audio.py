@@ -1,7 +1,7 @@
-import os, openai, subprocess, pathlib, math, datetime
+import os, openai, subprocess, pathlib, math, datetime, json
 from pathlib import Path
 # my imports
-from string_manipulation import to_time
+from handle_strings import to_time
 
 def get_audio_size(filename: pathlib.WindowsPath):
     """Get the size of an audio file in MB."""
@@ -15,7 +15,7 @@ def get_audio_duration(filename: pathlib.WindowsPath):
     output = subprocess.check_output(cmd)
     return float(output)
 
-def reformat_audio(folder,filename):
+def downformat_audio(folder,filename):
     """Reformat an audio file to 16kHz mono."""
     output_file = Path(folder,filename.stem+"_reformatted.mp3")
     command = ["ffmpeg", "-i", filename, "-vn", "-ac", "1", "-ar", "16000", "-ab", "192k", "-y", output_file]
@@ -27,7 +27,7 @@ def reformat_audio(folder,filename):
 def split_audio_file(folder,filename):
     """Split an audio file into 24MB chunks, especially for use with Whisper API."""
     files = []
-    filename = reformat_audio(folder,filename)
+    filename = downformat_audio(folder,filename)
     output_title_stem = Path(filename).stem
     total_duration = get_audio_duration(filename)
     chunk_duration = int(get_audio_duration(filename)/(get_audio_size(filename)/24))
@@ -43,3 +43,36 @@ def split_audio_file(folder,filename):
         files.append(Path(output))
     os.remove(filename)
     return files
+
+def audio_mp4_to_mp3(folder, filename: str):
+    """Convert an mp4 audio file to mp3."""
+    
+    file_stem = Path(filename).stem
+    mp4 = str(Path(folder, file_stem + ".mp4"))
+    mp3 = str(Path(folder, file_stem + ".mp3"))
+    command = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', mp4]
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    info = json.loads(result.stdout)
+
+    # Extract the audio codec and sample rate from the info
+    audio_info = [stream for stream in info['streams']][0]
+    sample_rate = audio_info['sample_rate']
+
+    command = ['ffmpeg', '-i', mp4, '-codec:a', 'libmp3lame', '-ar', sample_rate, mp3]
+
+    print(" ".join(command))
+    result = subprocess.run(command, shell=True, check=True)
+
+    # Check the result
+    if result.returncode != 0:
+        raise Exception(f'An error occurred: {result.returncode}')
+    else:
+        mp3_size = os.path.getsize(mp3)
+        mp4_size = os.path.getsize(mp4)
+        if abs(mp3_size - mp4_size) < 0.1 * mp4_size:
+            os.remove(mp4)
+            return Path(mp3)
+
+
+
+

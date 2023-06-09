@@ -1,7 +1,11 @@
 from pytube import YouTube
 from pathlib import Path
-import datetime, math, subprocess, os, torch, openai, pathlib, re
+import datetime, math, subprocess, os, torch, openai, pathlib, re, inquirer, time
 from requests_html import HTMLSession
+
+from handle_audio import audio_mp4_to_mp3
+from handle_strings import get_clipboard, show_message
+
 
 
 def find_videos(channel,search_terms):
@@ -86,9 +90,7 @@ def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads",
         youtube_video = YouTube(video_url, use_oauth=True, allow_oauth_cache=True)
 
         videos = youtube_video.streams.filter(type="video")
-        if okay_with_webm:
-            videos = videos.filter(file_extension="webm")
-        else:
+        if not okay_with_webm:
             videos = videos.filter(file_extension="mp4")
         streams = sorted(videos, reverse=True, key=lambda stream: int(''.join(c for c in stream.resolution if c.isdigit())) if stream.resolution else 0)
         
@@ -100,15 +102,11 @@ def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads",
             "lowest": 360,
         }
         selected_stream = next((stream for stream in streams if int(re.findall(r'\d+', stream.resolution)[0]) <= quality_map[quality]), None)
-        for stream in streams:
-            print(int(re.findall(r'\d+',stream.resolution)[0]))
-        print(quality_map[quality])   
 
     elif mode == "audio":
 
-        youtube_video = YouTube(video_url, use_oauth=False, allow_oauth_cache=True)
+        youtube_video = YouTube(video_url, use_oauth=True, allow_oauth_cache=True)
         streams = sorted(youtube_video.streams.filter(only_audio=True, file_extension="mp4"), reverse=True, key=lambda stream: int(''.join(c for c in stream.abr if c.isdigit())) if stream.abr else 0)
-        print("\n".join(str(stream) for stream in streams))
 
         quality_map = {
             "highest": 160000,
@@ -122,10 +120,9 @@ def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads",
         if selected_stream is None: #TODO: optimize this
             selected_stream = next((stream for stream in sorted(streams, key=lambda x: x.bitrate) if stream.bitrate > quality_map[quality]), None)
         
-        print(quality, quality_map[quality])
         print(selected_stream)
     else:
-        raise Exception("Invalid mode. Must be 'video' or 'audio'.")
+        raise Exception("Invalid mode. Must be 'video', 'audio', or 'video_only'.")
     
     if mode != "video":
         default_filename = selected_stream.default_filename
@@ -135,13 +132,42 @@ def download_from_youtube(video_url:str, folder:pathlib.WindowsPath="downloads",
         output_filename = f"{video_title}.{file_extension}"
         
         selected_stream.download(output_path=folder, filename=output_filename)
-    return Path(folder,output_filename)
 
-def yt_url_to_audiopath(urls:list,folder:str="output"):
+        if mode == "audio":
+            return audio_mp4_to_mp3(folder, output_filename)
+        else:
+            return Path(folder, output_filename)
+
+def yt_urls_to_audiopath(urls:list,folder:str="output"):
     audiopaths = []
     for url in urls:
         audio_path = download_from_youtube(url,folder,mode="audio",quality="low",okay_with_webm=True)
         audiopaths.append(audio_path)
     return audiopaths
 
-# download_from_youtube("https://www.youtube.com/watch?v=jclr0N6mvUI", mode="video")
+def download_with_ui():
+    url = get_clipboard()
+    if "https://" not in url:
+        print("No URL found in clipboard.")
+        time.sleep(5)
+    else:
+        questions = [
+            inquirer.List(
+                "file_type",
+                message="",
+                choices=["video","audio","video_only",]
+            ),
+            inquirer.List(
+                "quality",
+                message="",
+                choices=['highest', 'good', 'medium', 'low', 'lowest']
+
+            ),
+        ]
+
+        answers = inquirer.prompt(questions)
+        download_from_youtube(url, mode=answers["file_type"], quality=answers["quality"])
+
+        subprocess.Popen(f'explorer "downloads"')
+
+download_with_ui()

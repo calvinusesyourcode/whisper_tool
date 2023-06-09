@@ -4,9 +4,9 @@ from requests_html import HTMLSession
 from send2trash import send2trash
 
 # my imports
-from handle_youtube import find_videos, download_from_youtube
+from handle_youtube import find_videos, download_from_youtube, yt_urls_to_audiopath
 from transcription import transcribe_via_api, transcribe_offline
-from audio_manipulation import split_audio_file
+from handle_audio import split_audio_file
 
 
 
@@ -44,5 +44,4 @@ search_array = ["chatgpt and the nature of truth"]
 # process_videos(find_videos("huberman", search_array))
 # process_videos(find_videos("lex",search_array), "offline")
 
-# youtube
-process_audios([Path("H:/DJI_Audio_001/DJI_54_20230530_202814.WAV")])
+# process_audios(yt_urls_to_audiopath(["https://www.youtube.com/watch?v=jaH-dVr1GDM"]))

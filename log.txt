@@ -12,3 +12,6 @@ Transcribed H:\DJI_Audio_001\DJI_54_20230530_202814.WAV with GPU in 0:01:59.2952
 2023-06-03 17:08:19.765570
 
 2023-06-03 17:16:26.897701
+
+2023-06-09 09:17:41.311846
+Transcribed output\terence_mckenna__spiritualizing_matter.mp4 with GPU in 0:03:29.599073 seconds.
