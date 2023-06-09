@@ -8,7 +8,7 @@ SetTitleMatchMode 2
 
 +^!y::{
 if (InStr(A_Clipboard, "https://")) {
-	Run A_WorkingDir . "\handle_youtube.py - Shortcut.lnk"
+	Run A_WorkingDir . "\handle_youtube.py"
 } else {
 	Tooltip "No URL found in clipboard"
 	Sleep 3000

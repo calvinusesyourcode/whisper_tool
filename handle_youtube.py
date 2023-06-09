@@ -165,9 +165,13 @@ def download_with_ui():
             ),
         ]
 
+        folder = "downloads"
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
         answers = inquirer.prompt(questions)
         download_from_youtube(url, mode=answers["file_type"], quality=answers["quality"])
 
-        subprocess.Popen(f'explorer "downloads"')
+        subprocess.Popen(f'explorer "{folder}"')
 
 download_with_ui()
