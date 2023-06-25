@@ -48,3 +48,21 @@ def estimate_reading_time(text):
     # convert reading time to seconds
     seconds = minutes * 60
     return seconds
+
+# def get_text_between(string, start_string, end_string):
+#     start = string.find(start_string)
+#     if start != -1: # the start string was found
+#         start += len(start_string)
+#         end = string.find(end_string, start)
+#         if end != -1: # the end string was found
+#             return string[start:end]
+#     # if we reach here, one of the substrings was not found
+#     return ''
+
+# def epub_to_text(epub_path):
+#     """Convert epub to text file."""
+#     from epub2txt import epub2txt
+#     return epub2txt(epub_path)
+
+# print(get_text_between(epub_to_text("epub/waking_up.epub"), "For Annaka, Emma, and Violet", "Chapter 2"))
+# # print((epub_to_text("epub/waking_up.epub")))

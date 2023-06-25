@@ -37,11 +37,11 @@ def process_audios(paths:list, mode:str="offline"):
                 f.write(f"Transcribed {Path(file)} with GPU in {end-start} seconds.\n")
             # send2trash(str(file))
 
-
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 folder = "output"
 search_array = ["chatgpt and the nature of truth"]
 
 # process_videos(find_videos("huberman", search_array))
 # process_videos(find_videos("lex",search_array), "offline")
 
-# process_audios(yt_urls_to_audiopath(["https://www.youtube.com/watch?v=jaH-dVr1GDM"]))
+process_audios([Path("downloads/audio_____terence_mckenna__10_hours_lecture__black_screen__no_music_0.mp3")])

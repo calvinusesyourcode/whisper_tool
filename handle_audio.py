@@ -1,7 +1,9 @@
-import os, openai, subprocess, pathlib, math, datetime, json
+import os, openai, subprocess, pathlib, math, datetime, json, inquirer, time
 from pathlib import Path
 # my imports
 from handle_strings import to_time
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 def get_audio_size(filename: pathlib.WindowsPath):
     """Get the size of an audio file in MB."""
@@ -17,20 +19,19 @@ def get_audio_duration(filename: pathlib.WindowsPath):
 
 def downformat_audio(folder,filename):
     """Reformat an audio file to 16kHz mono."""
-    output_file = Path(folder,filename.stem+"_reformatted.mp3")
-    command = ["ffmpeg", "-i", filename, "-vn", "-ac", "1", "-ar", "16000", "-ab", "192k", "-y", output_file]
+    output_file = Path(folder,Path(filename).stem+"_reformatted.mp3")
+    command = ["ffmpeg", "-i", Path(folder,filename), "-vn", "-ac", "1", "-ar", "16000", "-ab", "192k", "-y", output_file]
     subprocess.run(command, check=True)
-    os.remove(filename)
     return Path(output_file)
 
 
 def split_audio_file(folder,filename):
     """Split an audio file into 24MB chunks, especially for use with Whisper API."""
     files = []
-    filename = downformat_audio(folder,filename)
+    filename = Path(folder,filename)
     output_title_stem = Path(filename).stem
     total_duration = get_audio_duration(filename)
-    chunk_duration = int(get_audio_duration(filename)/(get_audio_size(filename)/24))
+    chunk_duration = int(get_audio_duration(filename)/(get_audio_size(filename)/9))
     num_chunks = math.ceil(total_duration / chunk_duration)
     
     for i in range(num_chunks):
@@ -41,7 +42,6 @@ def split_audio_file(folder,filename):
         cmd = ['ffmpeg', '-i', filename, '-ss', str(start_time), '-to', str(end_time), '-c', 'copy', output]
         subprocess.run(cmd, check=True)
         files.append(Path(output))
-    os.remove(filename)
     return files
 
 def audio_mp4_to_mp3(folder, filename: str):
@@ -73,6 +73,218 @@ def audio_mp4_to_mp3(folder, filename: str):
             os.remove(mp4)
             return Path(mp3)
 
+def trim_audio(folder, filename, start_time:str="00:00:00", end_time:str="end"):
+    """Trim an audio file."""
+    noFilename = True
+    i = 0
+    while noFilename:
+        output_filename = Path(Path(filename).stem+f"_{i}.mp3")
+        if not os.path.exists(Path(folder,output_filename)):
+            noFilename = False
+        i += 1
+
+    if end_time == "end":
+        end_time = to_time(get_audio_duration(Path(folder,filename)))
+
+    file_path = str(Path(folder,filename))
+    output_path = str(Path(folder,output_filename))
+    command = ["ffmpeg", "-i", file_path, "-ss", start_time, "-to", end_time, "-c", "copy", "-y", output_path]
+    subprocess.run(command, check=True)
+    return output_path
+
+def trim_audio_with_ui():
+    folder = "downloads"
+    files = os.listdir(folder)
+
+    audio_files = [file for file in files]
+    if not audio_files:
+        print("No audio files found in the downloads folder.")
+        time.sleep(5)
+        return
+
+    questions = [
+        inquirer.List(
+            "file",
+            message="Select a file to trim",
+            choices=audio_files
+        ),
+        inquirer.Text(
+            "start_time",
+            message="Enter the start time (format HH:MM:SS, default is 00:00:00)"
+        ),
+        inquirer.Text(
+            "end_time",
+            message="Enter the end time (format HH:MM:SS, default is 'end')"
+        ),
+    ]
+
+    answers = inquirer.prompt(questions)
+    start_time = answers["start_time"] if answers["start_time"] else "00:00:00"
+    end_time = answers["end_time"] if answers["end_time"] else "end"
+    trim_audio(folder, answers["file"], start_time, end_time)
+
+    subprocess.Popen(f'explorer "{folder}"')
+
+def audio_to_mp3(folder, filename: str):
+    """Convert any audio file to mp3."""
+
+    # Skip the process if the file is already an mp3
+    if filename.endswith('.mp3'):
+        print(f"{filename} is already an mp3 file. Skipping conversion.")
+        return Path(folder, filename)
+
+    file_stem = Path(filename).stem
+    file_ext = Path(filename).suffix
+    input_file = str(Path(folder, file_stem + file_ext))
+    output_file = str(Path(folder, file_stem + ".mp3"))
+
+    command = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', '-show_format', input_file]
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    info = json.loads(result.stdout)
+
+    # Extract the audio codec and sample rate from the info
+    audio_info = [stream for stream in info['streams'] if stream['codec_type'] == 'audio'][0]
+    sample_rate = audio_info['sample_rate']
+
+    # Now convert the file
+    command = ['ffmpeg', '-i', input_file, '-codec:a', 'libmp3lame', '-ar', sample_rate, output_file]
+    print(" ".join(command))
+    result = subprocess.run(command, shell=True, check=True)
+
+    # Check the result
+    if result.returncode != 0:
+        raise Exception(f'An error occurred: {result.returncode}')
+    else:
+        output_size = os.path.getsize(output_file)
+        input_size = os.path.getsize(input_file)
+        if abs(output_size - input_size) < 0.1 * input_size:
+            os.remove(input_file)
+            return Path(output_file)
+
+def to_mp3_with_ui():
+    folder = "downloads"
+    files = os.listdir(folder)
+
+    audio_files = [file for file in files if not file.endswith('.mp3')]  # changed from .mp3 to not .mp3
+    if not audio_files:
+        print("No non-mp3 audio files found in the downloads folder.")
+        time.sleep(5)
+        return
+
+    questions = [
+        inquirer.List(
+            "file",
+            message="Select a file to convert to mp3",
+            choices=audio_files
+        ),
+    ]
+
+    answers = inquirer.prompt(questions)
+    audio_to_mp3(folder, answers["file"])
+
+    subprocess.Popen(f'explorer "{folder}"')
+
+def audio_to_audio(folder, filename: str, target_format: str, target_sample_rate: int = None):
+    """Convert any audio file to a specified format."""
+
+    codec_map = {
+        'mp3': 'libmp3lame',
+        'aac': 'libvo_aacenc',
+        'm4a': 'libvo_aacenc',  # Add this line
+        'ac3': 'ac3',
+        'flac': 'flac',
+        'wav': 'pcm_s16le',
+        'ogg': 'libvorbis',
+        'wma': 'wmav2',
+        'opus': 'libopus',
+    }
+
+    file_stem = Path(filename).stem
+    file_ext = Path(filename).suffix.lstrip('.')  # get extension without the dot
+
+    # Skip the process if the file is already in the target format
+    if file_ext.lower() == target_format.lower():
+        print(f"{filename} is already a {target_format} file. Skipping conversion.")
+        return Path(folder, filename)
+
+    # Ensure we have a codec for the target format
+    if target_format.lower() not in codec_map:
+        print(f"Unsupported target format: {target_format}")
+        return
+
+    input_file = str(Path(folder, file_stem + '.' + file_ext))
+    output_file = str(Path(folder, file_stem + '.' + target_format))
+
+    command = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', '-show_format', input_file]
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    info = json.loads(result.stdout)
+
+    # Extract the audio codec and sample rate from the info
+    audio_info = [stream for stream in info['streams'] if stream['codec_type'] == 'audio'][0]
+    sample_rate = audio_info['sample_rate'] if target_sample_rate is None else str(target_sample_rate)
+
+    # Now convert the file
+    command = ['ffmpeg', '-i', input_file, '-codec:a', codec_map[target_format.lower()], '-ar', sample_rate, output_file]
+    print(" ".join(command))
+    result = subprocess.run(command, shell=True, check=True)
+
+    # Check the result
+    if result.returncode != 0:
+        raise Exception(f'An error occurred: {result.returncode}')
+    else:
+        output_size = os.path.getsize(output_file)
+        input_size = os.path.getsize(input_file)
+        if abs(output_size - input_size) < 0.1 * input_size:
+            os.remove(input_file)
+        return Path(output_file)
+
+def audio_to_audio_with_ui():
+    folder = "downloads"
+    files = os.listdir(folder)
+
+    audio_files = [file for file in files if '.' in file]  # get all files with an extension
+    if not audio_files:
+        print("No audio files found in the downloads folder.")
+        time.sleep(5)
+        return
+
+    codec_map = {
+        'mp3': 'libmp3lame',
+        'aac': 'libvo_aacenc',
+        'm4a': 'libvo_aacenc',  # Add this line
+        'ac3': 'ac3',
+        'flac': 'flac',
+        'wav': 'pcm_s16le',
+        'ogg': 'libvorbis',
+        'wma': 'wmav2',
+        'opus': 'libopus',
+    }
+
+    target_formats = list(codec_map.keys())
+
+    questions = [
+        inquirer.List(
+            "file",
+            message="Select a file to convert",
+            choices=audio_files
+        ),
+        inquirer.List(
+            "target_format",
+            message="Select the target format",
+            choices=target_formats
+        ),
+        inquirer.Text(
+            "target_sample_rate",
+            message="Sample rate"
+        ),
+    ]
+
+    answers = inquirer.prompt(questions)
+    target_sample_rate = int(answers["target_sample_rate"]) if answers["target_sample_rate"] else None
+    audio_to_audio(folder, answers["file"], answers["target_format"], target_sample_rate)
+
+    subprocess.Popen(f'explorer "{folder}"')
 
 
 
+# trim_audio_with_ui()
